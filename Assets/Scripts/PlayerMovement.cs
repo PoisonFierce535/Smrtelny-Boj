@@ -10,12 +10,17 @@ public class PlayerMovement : MonoBehaviour
 
     private InputAction moveAction;
     private InputAction jumpAction;
+    private InputAction crouchAction;
     private float moveActionValue;
 
     private const float WALK_SPEED = 3.5f;
+    private const float CROUCH_SPEED = WALK_SPEED / 2;
     private const float JUMP_STRENGTH = 5;
+    private const float CROUCH_SIZE = 0.4f;
+    private const float UNCROUCH_SIZE = 1;
 
     private bool isGrounded;
+    private bool isCrouched;
 
 
 
@@ -33,11 +38,12 @@ public class PlayerMovement : MonoBehaviour
     {
         moveAction = InputSystem.actions.FindAction("Move");
         jumpAction = InputSystem.actions.FindAction("Jump");
+        crouchAction = InputSystem.actions.FindAction("Crouch");
 
         rigidBodyPlayer = gameObject.GetComponent<Rigidbody>();
     }
 
-    // Makes the player move or jump on player's command
+    // Player movement: jump, move, crouch
     void Update()
     {
         moveActionValue = moveAction.ReadValue<float>();
@@ -46,7 +52,15 @@ public class PlayerMovement : MonoBehaviour
         {
             Jump();
         }
-        
+
+        if (crouchAction.WasPressedThisFrame() && isGrounded)
+        {
+            Crouch();
+        }
+        if (!isGrounded && isCrouched)
+        {
+            UnCrouch();
+        }
     }
     void FixedUpdate()
     {
@@ -79,7 +93,29 @@ public class PlayerMovement : MonoBehaviour
     }
     void Move()
     {
-        Vector3 velocity = rigidBodyPlayer.linearVelocity;
-        rigidBodyPlayer.linearVelocity = new Vector3(WALK_SPEED * moveActionValue, velocity.y, velocity.z);        
+        if (!isCrouched)
+        {
+            Vector3 velocity = rigidBodyPlayer.linearVelocity;
+            rigidBodyPlayer.linearVelocity = new Vector3(WALK_SPEED * moveActionValue, velocity.y, velocity.z);
+        }
+        else if (isCrouched)
+        {
+            Vector3 velocity = rigidBodyPlayer.linearVelocity;
+            rigidBodyPlayer.linearVelocity = new Vector3(CROUCH_SPEED * moveActionValue, velocity.y, velocity.z);
+        }
+    }
+    void Crouch()
+    {
+        isCrouched = true;
+
+        transform.localScale = new Vector3(transform.localScale.x, CROUCH_SIZE, transform.localScale.x);
+        transform.position -= new Vector3(0, 1 - CROUCH_SIZE, 0);
+    }
+    void UnCrouch()
+    {
+        isCrouched = false;
+
+        transform.localScale = new Vector3(transform.localScale.x, UNCROUCH_SIZE, transform.localScale.x);
+        transform.position += new Vector3(0, 1 - CROUCH_SIZE, 0);
     }
 }
