@@ -6,12 +6,12 @@ public class PlayerMovement : MonoBehaviour
 {
     public InputActionAsset InputActions;
 
-    private Rigidbody rigidBodyPlayer;
-
     private InputAction moveAction;
     private InputAction jumpAction;
     private InputAction crouchAction;
     private float moveActionValue;
+
+    private Rigidbody rigidBody;
 
     private const float WALK_SPEED = 3.5f;
     private const float CROUCH_SPEED = WALK_SPEED / 2;
@@ -40,7 +40,7 @@ public class PlayerMovement : MonoBehaviour
         jumpAction = InputSystem.actions.FindAction("Jump");
         crouchAction = InputSystem.actions.FindAction("Crouch");
 
-        rigidBodyPlayer = gameObject.GetComponent<Rigidbody>();
+        rigidBody = gameObject.GetComponent<Rigidbody>();
     }
 
     // Player movement: jump, move, crouch
@@ -89,19 +89,19 @@ public class PlayerMovement : MonoBehaviour
     // FUNCTIONS //
     void Jump()
     {
-        rigidBodyPlayer.AddForceAtPosition(Vector3.up * JUMP_STRENGTH, Vector3.up, ForceMode.Impulse);
+        rigidBody.AddForceAtPosition(Vector3.up * JUMP_STRENGTH, Vector3.up, ForceMode.Impulse);
     }
     void Move()
     {
         if (!isCrouched)
         {
-            Vector3 velocity = rigidBodyPlayer.linearVelocity;
-            rigidBodyPlayer.linearVelocity = new Vector3(WALK_SPEED * moveActionValue, velocity.y, velocity.z);
+            Vector3 velocity = rigidBody.linearVelocity;
+            rigidBody.linearVelocity = new Vector3(WALK_SPEED * moveActionValue, velocity.y, velocity.z);
         }
         else if (isCrouched)
         {
-            Vector3 velocity = rigidBodyPlayer.linearVelocity;
-            rigidBodyPlayer.linearVelocity = new Vector3(CROUCH_SPEED * moveActionValue, velocity.y, velocity.z);
+            Vector3 velocity = rigidBody.linearVelocity;
+            rigidBody.linearVelocity = new Vector3(CROUCH_SPEED * moveActionValue, velocity.y, velocity.z);
         }
     }
     void Crouch()

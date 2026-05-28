@@ -131,7 +131,7 @@ GameObject:
   - component: {fileID: 40220896}
   - component: {fileID: 40220895}
   - component: {fileID: 40220894}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Player2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1401,9 +1401,10 @@ GameObject:
   - component: {fileID: 1635345115}
   - component: {fileID: 1635345114}
   - component: {fileID: 1635345113}
-  - component: {fileID: 1635345112}
   - component: {fileID: 1635345117}
-  m_Layer: 0
+  - component: {fileID: 1635345112}
+  - component: {fileID: 1635345118}
+  m_Layer: 6
   m_Name: Player1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1545,6 +1546,22 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 120
   m_CollisionDetection: 0
+--- !u!114 &1635345118
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1635345111}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3936feaa2f576c949bde0827f2a98127, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
+  InputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 128
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
