@@ -13,13 +13,11 @@ public class PlayerMovement : MonoBehaviour
     private InputAction crouchAction;
     private float moveActionValue;
 
-    private float speedMultiplier;
-
     private Rigidbody rigidBody;
 
     // EDITABLE //
     private const float WALK_SPEED = 3.5f;
-    private const float CROUCH_SPEED = WALK_SPEED / 2; // divided by 2
+    private const float CROUCH_MULTIPLIER = 0.5f;
     private const float JUMP_STRENGTH = 5;
     private const float CROUCH_SIZE = 0.4f;
     private const float UNCROUCH_SIZE = 1;
@@ -100,13 +98,15 @@ public class PlayerMovement : MonoBehaviour
     }
     void Move()
     {
+        float speedMultiplier;
         Vector3 velocity = rigidBody.linearVelocity;
+
         // Action 1 + A or B (B.1 or B.2)
 
         // Action 1 (half of the WALK_SPEED)
         if (isCrouched)
         {
-            speedMultiplier = 0.5f;
+            speedMultiplier = CROUCH_MULTIPLIER;
         }
         else
         {

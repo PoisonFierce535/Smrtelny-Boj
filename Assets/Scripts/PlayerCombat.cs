@@ -95,19 +95,18 @@ public class PlayerCombat : MonoBehaviour
     // Checks whether the player has pressed an input, then do the thing
     private void Update()
     {
-        // TEMPORARY
+        // TEMPORARY (fix the InputSystem for both players first)
         if (opponentNumber == 2)
         {
-            if (lightAttackAction.WasPressedThisFrame())
+            if (lightAttackAction.WasPressedThisFrame() && !isHeavyAttacking && !isBlocking)
             {
                 StartCoroutine(LightAttack());
             }
-            else if (heavyAttackAction.WasPressedThisFrame())
+            else if (heavyAttackAction.WasPressedThisFrame() && !isLightAttacking && !isBlocking)
             {
                 StartCoroutine(HeavyAttack());
             }
-
-            if (parryAndBlockAction.WasPressedThisFrame())
+            else if (parryAndBlockAction.WasPressedThisFrame() && (!isLightAttacking || !isHeavyAttacking))
             {
                 StartCoroutine(ParryAndBlock());
             }
