@@ -41,8 +41,8 @@ public class PlayerCombat : MonoBehaviour
     public const float LIGHT_ATTACK_SPEED = WALK_SPEED / 2;
     public const float HEAVY_ATTACK_SPEED = WALK_SPEED / 4;
     public const float PARRY_OR_BLOCK_SPEED = WALK_SPEED / 1.5f;
-    private const float LIGHT_ATTACK_RANGE = 1.4f;
-    private const float HEAVY_ATTACK_RANGE = 1.4f;
+    private const float LIGHT_ATTACK_RANGE = 1;
+    private const float HEAVY_ATTACK_RANGE = 1.2f;
     private const float LIGHT_ATTACK_DAMAGE = 0.1f;
     private const float HEAVY_ATTACK_DAMAGE = 0.3f;
     private const float ATTACK_DELAY = 0.2f;
@@ -96,7 +96,7 @@ public class PlayerCombat : MonoBehaviour
     private void Update()
     {
         // TEMPORARY (fix the InputSystem for both players first)
-        if (opponentNumber == 2)
+        if (opponentNumber == 2 && Time.timeScale == 1)
         {
             if (lightAttackAction.WasPressedThisFrame() && !isHeavyAttacking && !isBlocking)
             {
@@ -106,11 +106,11 @@ public class PlayerCombat : MonoBehaviour
             {
                 StartCoroutine(HeavyAttack());
             }
-            else if (parryAndBlockAction.WasPressedThisFrame() && (!isLightAttacking || !isHeavyAttacking))
+            else if (parryAndBlockAction.WasPressedThisFrame() && !isLightAttacking && !isHeavyAttacking)
             {
                 StartCoroutine(ParryAndBlock());
             }
-            else if (parryAndBlockAction.WasReleasedThisFrame())
+            else if (parryAndBlockAction.WasReleasedThisFrame() && (isBlocking || isParrying))
             {
                 StopParryAndBlock();
             }
@@ -180,27 +180,27 @@ public class PlayerCombat : MonoBehaviour
 
         isHeavyAttacking = false;
     }
-    
+
     private IEnumerator ParryAndBlock()
     {
         if (canParry)
         {
             canParry = false;
 
-            Debug.Log("P" + playerNumber + " " + "Parrying");
             isParrying = true;
             isBlocking = false;
 
             yield return parryTime;
         }
 
-        Debug.Log("P" + playerNumber + " " + "Blocking");
-        isParrying = false;
-        isBlocking = true;
+        if (parryAndBlockAction.IsPressed())
+        {
+            isParrying = false;
+            isBlocking = true;
+        }
     }
     private void StopParryAndBlock()
     {
-        Debug.Log("P" + playerNumber + " " + "Not Blocking or Parrying");
         isParrying = false;
         isBlocking = false;
 
@@ -210,7 +210,6 @@ public class PlayerCombat : MonoBehaviour
     {
         yield return parryReloadTime;
 
-        Debug.LogWarning("P" + playerNumber + " " + "Can Parry");
         canParry = true;
     }
 

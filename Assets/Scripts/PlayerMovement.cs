@@ -13,14 +13,17 @@ public class PlayerMovement : MonoBehaviour
     private InputAction crouchAction;
     private float moveActionValue;
 
-    private Rigidbody rigidBody;
+    private Rigidbody plrRigidBody;
+    private BoxCollider plrCollider;
 
     // EDITABLE //
     private const float WALK_SPEED = 3.5f;
     private const float CROUCH_MULTIPLIER = 0.5f;
     private const float JUMP_STRENGTH = 5;
-    private const float CROUCH_SIZE = 0.4f;
-    private const float UNCROUCH_SIZE = 1;
+    private const float CROUCH_SIZE = 0.9f;
+    private const float CROUCH_CENTER = 1.35f;
+    private const float UNCROUCH_SIZE = 1.8f;
+    private const float UNCROUCH_CENTER = 0.9f;
     // EDITABLE //
 
     private bool isGrounded;
@@ -47,31 +50,35 @@ public class PlayerMovement : MonoBehaviour
         jumpAction = InputSystem.actions.FindAction("Jump");
         crouchAction = InputSystem.actions.FindAction("Crouch");
 
-        rigidBody = gameObject.GetComponent<Rigidbody>();
+        plrRigidBody = gameObject.GetComponent<Rigidbody>();
+        plrCollider = gameObject.GetComponent<BoxCollider>();
     }
 
     // Checks whether the player has pressed an input, then do the thing
     void Update()
     {
-        moveActionValue = moveAction.ReadValue<float>();
+        if (Time.timeScale == 1)
+        {
+            moveActionValue = moveAction.ReadValue<float>();
 
-        if (isGrounded)
-        {
-            Move();
-        }
+            if (isGrounded)
+            {
+                Move();
+            }
 
-        if (jumpAction.WasPressedThisFrame() && isGrounded)
-        {
-            Jump();
-        }
+            if (jumpAction.WasPressedThisFrame() && isGrounded)
+            {
+                Jump();
+            }
 
-        if (crouchAction.WasPressedThisFrame() && isGrounded)
-        {
-            Crouch();
-        }
-        else if (!isGrounded && isCrouched)
-        {
-            UnCrouch();
+            if (crouchAction.WasPressedThisFrame() && isGrounded && !isCrouched)
+            {
+                Crouch();
+            }
+            else if (crouchAction.WasPressedThisFrame() && isGrounded && isCrouched)
+            {
+                UnCrouch();
+            }
         }
     }
 
@@ -91,19 +98,35 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+
     // FUNCTIONS //
     void Jump()
     {
-        rigidBody.AddForceAtPosition(Vector3.up * JUMP_STRENGTH, Vector3.up, ForceMode.Impulse);
+        plrRigidBody.AddForceAtPosition(Vector3.up * JUMP_STRENGTH, Vector3.up, ForceMode.Impulse);
     }
+
     void Move()
     {
         float speedMultiplier;
-        Vector3 velocity = rigidBody.linearVelocity;
+        Vector3 velocity = plrRigidBody.linearVelocity;
+
+        /*
+        Debug.Log(moveActionValue + " " + MathF.Round(gameObject.transform.rotation.y, 1));
+        if (moveActionValue < 0 && MathF.Round(gameObject.transform.rotation.y, 1) == 0.7f)
+        {
+            Debug.Log("Left");
+            gameObject.transform.Rotate(0, 180, 0);
+        }
+        else if (moveActionValue > 0 && MathF.Round(gameObject.transform.rotation.y, 1) == -0.7f)
+        {
+            Debug.Log("Right");
+            gameObject.transform.Rotate(0, 180, 0);
+        }
+        */
 
         // Action 1 + A or B (B.1 or B.2)
 
-        // Action 1 (half of the WALK_SPEED)
+        // Action 1
         if (isCrouched)
         {
             speedMultiplier = CROUCH_MULTIPLIER;
@@ -116,41 +139,44 @@ public class PlayerMovement : MonoBehaviour
         // Action A
         if (playerCombat.isParrying || playerCombat.isBlocking)
         {
-            rigidBody.linearVelocity = new Vector3(PlayerCombat.PARRY_OR_BLOCK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            plrRigidBody.linearVelocity = new Vector3(PlayerCombat.PARRY_OR_BLOCK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
             return;
         }
 
         // Action B.1
         if (playerCombat.isLightAttacking)
         {
-            rigidBody.linearVelocity = new Vector3(PlayerCombat.LIGHT_ATTACK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            plrRigidBody.linearVelocity = new Vector3(PlayerCombat.LIGHT_ATTACK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
             return;
         }
         // Action B.2
         else if (playerCombat.isHeavyAttacking)
         {
-            rigidBody.linearVelocity = new Vector3(PlayerCombat.HEAVY_ATTACK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            plrRigidBody.linearVelocity = new Vector3(PlayerCombat.HEAVY_ATTACK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
             return;
         }
         else
         {
-            rigidBody.linearVelocity = new Vector3(WALK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            plrRigidBody.linearVelocity = new Vector3(WALK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
             return;
         }
-
     }
     void Crouch()
     {
         isCrouched = true;
 
-        transform.localScale = new Vector3(transform.localScale.x, CROUCH_SIZE, transform.localScale.x);
-        transform.position -= new Vector3(0, 1 - CROUCH_SIZE, 0);
+        plrCollider.size = new Vector3(plrCollider.size.x, CROUCH_SIZE, plrCollider.size.z);
+        plrCollider.center = new Vector3(plrCollider.center.x, CROUCH_CENTER, plrCollider.center.z);
+        transform.position -= new Vector3(0, 0.9f, 0);
+        Debug.Log("Crouch");
     }
     void UnCrouch()
     {
         isCrouched = false;
 
-        transform.localScale = new Vector3(transform.localScale.x, UNCROUCH_SIZE, transform.localScale.x);
-        transform.position += new Vector3(0, 1 - CROUCH_SIZE, 0);
+        plrCollider.size = new Vector3(plrCollider.size.x, UNCROUCH_SIZE, plrCollider.size.z);
+        plrCollider.center = new Vector3(plrCollider.center.x, UNCROUCH_CENTER, plrCollider.center.z);
+        transform.position += new Vector3(0, 0.9f, 0);
+        Debug.Log("Uncrouch");
     }
 }
