@@ -18,13 +18,13 @@ public class PlayerCombat : MonoBehaviour
 
     public InputActionAsset InputActions;
 
+    private PlayerCombat opponentPlayerCombat;
+    private UIManager uiManager;
 
     private int playerNumber;
     private int opponentNumber;
 
     private GameObject opponentPlayer;
-
-    private PlayerCombat opponentPlayerCombat;
 
     private InputAction lightAttackAction;
     private InputAction heavyAttackAction;
@@ -43,6 +43,8 @@ public class PlayerCombat : MonoBehaviour
     public const float PARRY_OR_BLOCK_SPEED = WALK_SPEED / 1.5f;
     private const float LIGHT_ATTACK_RANGE = 1.4f;
     private const float HEAVY_ATTACK_RANGE = 1.4f;
+    private const float LIGHT_ATTACK_DAMAGE = 0.1f;
+    private const float HEAVY_ATTACK_DAMAGE = 0.3f;
     private const float ATTACK_DELAY = 0.2f;
     private const float PARRY_TIME = 0.2f;
     private const float PARRY_RELOAD_TIME = 1f;
@@ -53,6 +55,7 @@ public class PlayerCombat : MonoBehaviour
     public bool isBlocking;
     public bool isLightAttacking;
     public bool isHeavyAttacking;
+
 
 
     // Enables the inputs whenever the player object is active
@@ -80,6 +83,8 @@ public class PlayerCombat : MonoBehaviour
             opponentNumber = 1;
             opponentPlayer = GameObject.Find("Player1");
         }
+        uiManager = GameObject.Find("UI").GetComponent<UIManager>();
+
         opponentPlayerCombat = opponentPlayer.GetComponent<PlayerCombat>();
 
         lightAttackAction = InputSystem.actions.FindAction("LightAttack");
@@ -125,23 +130,22 @@ public class PlayerCombat : MonoBehaviour
 
         if (Physics.Raycast(originPos, forwardDirection, LIGHT_ATTACK_RANGE, opponentMask) && opponentPlayerCombat.isParrying)
         {
-            //Debug.Log("P" + playerNumber + " " + "Light: Parried");
+            Debug.Log("P" + playerNumber + " " + "Light: Parried");
 
         }
         else if (Physics.Raycast(originPos, forwardDirection, LIGHT_ATTACK_RANGE, opponentMask) && opponentPlayerCombat.isBlocking)
         {
-            //Debug.Log("P" + playerNumber + " " + "Light: Blocked");
-
+            Debug.Log("P" + playerNumber + " " + "Light: Blocked");
+            // stamina bar
         }
         else if (Physics.Raycast(originPos, forwardDirection, LIGHT_ATTACK_RANGE, opponentMask))
         {
-            //Debug.Log("P" + playerNumber + " " + "Light: Hit");
-
+            Debug.Log("P" + playerNumber + " " + "Light: Hit");
+            uiManager.TakeDamage(opponentNumber, LIGHT_ATTACK_DAMAGE);
         }
         else
         {
-            //Debug.Log("P" + playerNumber + " " + "Light: -");
-
+            Debug.Log("P" + playerNumber + " " + "Light: -");
         }
 
         isLightAttacking = false;
@@ -157,23 +161,22 @@ public class PlayerCombat : MonoBehaviour
 
         if (Physics.Raycast(originPos, forwardDirection, HEAVY_ATTACK_RANGE, opponentMask) && opponentPlayerCombat.isParrying)
         {
-            //Debug.Log("P" + playerNumber + " " + "Heavy: Parried");
+            Debug.Log("P" + playerNumber + " " + "Heavy: Parried");
 
         }
         else if (Physics.Raycast(originPos, forwardDirection, HEAVY_ATTACK_RANGE, opponentMask) && opponentPlayerCombat.isBlocking)
         {
-            //Debug.Log("P" + playerNumber + " " + "Heavy: Blocked");
-
+            Debug.Log("P" + playerNumber + " " + "Heavy: Blocked");
+            // stamina bar
         }
         else if (Physics.Raycast(originPos, forwardDirection, HEAVY_ATTACK_RANGE, opponentMask))
         {
-            //Debug.Log("P" + playerNumber + " " + "Heavy: Hit");
-
+            Debug.Log("P" + playerNumber + " " + "Heavy: Hit");
+            uiManager.TakeDamage(opponentNumber, HEAVY_ATTACK_DAMAGE);
         }
         else
         {
-            //Debug.Log("P" + playerNumber + " " + "Heavy: -");
-
+            Debug.Log("P" + playerNumber + " " + "Heavy: -");
         }
 
         isHeavyAttacking = false;
@@ -211,4 +214,5 @@ public class PlayerCombat : MonoBehaviour
         Debug.LogWarning("P" + playerNumber + " " + "Can Parry");
         canParry = true;
     }
+
 }

@@ -24,6 +24,10 @@ public class UIManager : MonoBehaviour
         speedUI.text = "P1 Speed: " + string.Format("{0:N2}", MathF.Round(player.GetComponent<Rigidbody>().linearVelocity.x, 2));
     }
 
-    // Damage taking
-
+    // FUNCTIONS //
+    public void TakeDamage(int oppNum, float health)
+    {
+        UnityEngine.UI.Slider opponnentHealth = GameObject.Find("Player" + oppNum + "Health").GetComponent<UnityEngine.UI.Slider>();
+        opponnentHealth.value -= health;
+    }
 }
