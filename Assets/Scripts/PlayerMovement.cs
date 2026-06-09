@@ -4,20 +4,26 @@ using UnityEngine.InputSystem;
 
 public class PlayerMovement : MonoBehaviour
 {
-    public InputActionAsset InputActions;
+    private PlayerCombat playerCombat;
 
-    private Rigidbody rigidBodyPlayer;
+    public InputActionAsset InputActions;
 
     private InputAction moveAction;
     private InputAction jumpAction;
     private InputAction crouchAction;
     private float moveActionValue;
 
+    private float speedMultiplier;
+
+    private Rigidbody rigidBody;
+
+    // EDITABLE //
     private const float WALK_SPEED = 3.5f;
-    private const float CROUCH_SPEED = WALK_SPEED / 2;
+    private const float CROUCH_SPEED = WALK_SPEED / 2; // divided by 2
     private const float JUMP_STRENGTH = 5;
     private const float CROUCH_SIZE = 0.4f;
     private const float UNCROUCH_SIZE = 1;
+    // EDITABLE //
 
     private bool isGrounded;
     private bool isCrouched;
@@ -34,19 +40,27 @@ public class PlayerMovement : MonoBehaviour
         InputActions.FindActionMap("Player").Disable();
     }
 
+    // Sets all neccessary variables
     private void Awake()
     {
+        playerCombat = gameObject.GetComponent<PlayerCombat>();
+
         moveAction = InputSystem.actions.FindAction("Move");
         jumpAction = InputSystem.actions.FindAction("Jump");
         crouchAction = InputSystem.actions.FindAction("Crouch");
 
-        rigidBodyPlayer = gameObject.GetComponent<Rigidbody>();
+        rigidBody = gameObject.GetComponent<Rigidbody>();
     }
 
-    // Player movement: jump, move, crouch
+    // Checks whether the player has pressed an input, then do the thing
     void Update()
     {
         moveActionValue = moveAction.ReadValue<float>();
+
+        if (isGrounded)
+        {
+            Move();
+        }
 
         if (jumpAction.WasPressedThisFrame() && isGrounded)
         {
@@ -57,16 +71,9 @@ public class PlayerMovement : MonoBehaviour
         {
             Crouch();
         }
-        if (!isGrounded && isCrouched)
+        else if (!isGrounded && isCrouched)
         {
             UnCrouch();
-        }
-    }
-    void FixedUpdate()
-    {
-        if (isGrounded)
-        {
-            Move();
         }
     }
 
@@ -89,20 +96,48 @@ public class PlayerMovement : MonoBehaviour
     // FUNCTIONS //
     void Jump()
     {
-        rigidBodyPlayer.AddForceAtPosition(Vector3.up * JUMP_STRENGTH, Vector3.up, ForceMode.Impulse);
+        rigidBody.AddForceAtPosition(Vector3.up * JUMP_STRENGTH, Vector3.up, ForceMode.Impulse);
     }
     void Move()
     {
-        if (!isCrouched)
+        Vector3 velocity = rigidBody.linearVelocity;
+        // Action 1 + A or B (B.1 or B.2)
+
+        // Action 1 (half of the WALK_SPEED)
+        if (isCrouched)
         {
-            Vector3 velocity = rigidBodyPlayer.linearVelocity;
-            rigidBodyPlayer.linearVelocity = new Vector3(WALK_SPEED * moveActionValue, velocity.y, velocity.z);
+            speedMultiplier = 0.5f;
         }
-        else if (isCrouched)
+        else
         {
-            Vector3 velocity = rigidBodyPlayer.linearVelocity;
-            rigidBodyPlayer.linearVelocity = new Vector3(CROUCH_SPEED * moveActionValue, velocity.y, velocity.z);
+            speedMultiplier = 1f;
         }
+
+        // Action A
+        if (playerCombat.isParrying || playerCombat.isBlocking)
+        {
+            rigidBody.linearVelocity = new Vector3(PlayerCombat.PARRY_OR_BLOCK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            return;
+        }
+
+        // Action B.1
+        if (playerCombat.isLightAttacking)
+        {
+            rigidBody.linearVelocity = new Vector3(PlayerCombat.LIGHT_ATTACK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            return;
+        }
+        // Action B.2
+        else if (playerCombat.isHeavyAttacking)
+        {
+            rigidBody.linearVelocity = new Vector3(PlayerCombat.HEAVY_ATTACK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            return;
+        }
+        else
+        {
+            rigidBody.linearVelocity = new Vector3(WALK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            return;
+        }
+
     }
     void Crouch()
     {
