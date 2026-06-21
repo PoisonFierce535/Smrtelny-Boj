@@ -96,7 +96,7 @@ public class PlayerCombat : MonoBehaviour
     private void Update()
     {
         // TEMPORARY (fix the InputSystem for both players first)
-        if (opponentNumber == 2 && Time.timeScale == 1)
+        if (playerNumber == 1 && Time.timeScale != 0)
         {
             if (lightAttackAction.WasPressedThisFrame() && !isHeavyAttacking && !isBlocking)
             {
