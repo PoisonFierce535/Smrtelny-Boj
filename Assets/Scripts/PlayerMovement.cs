@@ -21,25 +21,28 @@ public class PlayerMovement : MonoBehaviour
     private Rigidbody rb;
     private BoxCollider coll;
 
+    public Transform meshBone;
+
     private GameObject opponentPlayer;
+
+    private Animator anim;
+    private int speedPar;
 
     // EDITABLE //
     private const float WALK_SPEED = 4;
-    private const float CROUCH_MULTIPLIER = 0.5f;
     private const float JUMP_STRENGTH = 650;
     private const float CROUCH_SIZE = 0.9f;
-    private const float CROUCH_CENTER = 1.35f;
+    private const float CROUCH_CENTER = 0.45f;
     private const float UNCROUCH_SIZE = 1.8f;
     private const float UNCROUCH_CENTER = 0.9f;
     // EDITABLE //
 
-    private bool isGrounded;
-    private bool isCrouched;
-    private bool isRolling;
+    public bool isGrounded;
+    public bool isCrouched;
+    public bool isRolling;
+    public bool isLanding;
 
     private bool canDoubleJump;
-
-    //private float timer;
 
 
 
@@ -74,6 +77,9 @@ public class PlayerMovement : MonoBehaviour
 
         rb = gameObject.GetComponent<Rigidbody>();
         coll = gameObject.GetComponent<BoxCollider>();
+
+        anim = gameObject.GetComponent<Animator>();
+        speedPar = Animator.StringToHash("Speed");
     }
 
     // Checks whether the player has pressed an input, then do the thing
@@ -83,10 +89,33 @@ public class PlayerMovement : MonoBehaviour
         {
             moveActionValue = moveAction.ReadValue<float>();
 
-            if (isGrounded)
+            AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+            if (stateInfo.IsName("A|Jump_Land"))
+            {
+                isLanding = true;
+            }
+            else
+            {
+                isLanding = false;
+            }
+
+            anim.SetFloat(speedPar, rb.linearVelocity.x);
+            anim.SetBool("isGrounded", isGrounded);
+            if (rb.linearVelocity.y < 0)
+            {
+                anim.SetBool("isFalling", true);
+            }
+            else
+            {
+                anim.SetBool("isFalling", false);
+            }
+
+
+            if (isGrounded && !isRolling)
             {
                 Move();
             }
+
 
             if (jumpAction.WasPressedThisFrame() && isGrounded && !isCrouched && !isRolling)
             {
@@ -98,7 +127,7 @@ public class PlayerMovement : MonoBehaviour
                 canDoubleJump = false;
                 Jump();
             }
-
+            
             if (crouchAction.WasPressedThisFrame() && isGrounded && !isCrouched && !isRolling)
             {
                 Crouch();
@@ -108,16 +137,23 @@ public class PlayerMovement : MonoBehaviour
                 UnCrouch();
             }
 
-            if (rollAction.WasPressedThisFrame() && moveActionValue > 0 && isGrounded && !isRolling)
+            if (rollAction.WasPressedThisFrame() && rb.linearVelocity.x > 1 && isGrounded && !isRolling)
             {
                 StartCoroutine(Roll(1)); 
             }
-            else if (rollAction.WasPressedThisFrame() && moveActionValue < 0 && isGrounded && !isRolling)
+            else if (rollAction.WasPressedThisFrame() && rb.linearVelocity.x < -1 && isGrounded && !isRolling)
             {
                 StartCoroutine(Roll(-1));
             }
         }
     }
+    private void LateUpdate()
+    {
+        if (meshBone == null) return;
+
+        meshBone.localPosition = new Vector3(0f, meshBone.localPosition.y, 0f);
+    }
+
 
     // Checks whether the player is on the ground
     private void OnCollisionEnter(Collision collision)
@@ -125,8 +161,6 @@ public class PlayerMovement : MonoBehaviour
         if (!isGrounded && collision.gameObject.CompareTag("Floor"))
         {
             isGrounded = true;
-            //Debug.Log(timer);
-            //timer = 0;
         }
     }
     private void OnCollisionExit(Collision collision)
@@ -135,7 +169,6 @@ public class PlayerMovement : MonoBehaviour
         {
             isGrounded = false;
             canDoubleJump = true;
-            //StartCoroutine(Timer());
         }
     }
 
@@ -143,14 +176,22 @@ public class PlayerMovement : MonoBehaviour
     // FUNCTIONS //
     void Jump()
     {
-        rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
-        rb.AddForceAtPosition(Vector3.up * JUMP_STRENGTH, Vector3.up, ForceMode.Impulse);
+        if (!isLanding)
+        {
+            anim.SetTrigger("Jump");
+            rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
+            rb.AddForceAtPosition(Vector3.up * JUMP_STRENGTH, Vector3.up, ForceMode.Impulse);
+        }
     }
 
     void Move()
     {
-        float speedMultiplier;
         Vector3 velocity = rb.linearVelocity;
+
+        if (isCrouched && (rb.linearVelocity.x > 1 || rb.linearVelocity.x < -1))
+        {
+            UnCrouch();
+        }
 
         // Player rotation
         if (opponentPlayer.transform.position.x < gameObject.transform.position.x && MathF.Round(gameObject.transform.rotation.y, 1) == 0.7f /* to right */)
@@ -165,40 +206,30 @@ public class PlayerMovement : MonoBehaviour
             Debug.Log("Right");
         }
 
-        // Action 1 + A or B (B.1 or B.2) //
+        // A or B (B.1 or B.2) //
 
-        // Action 1
-        if (isCrouched)
-        {
-            speedMultiplier = CROUCH_MULTIPLIER;
-        }
-        else
-        {
-            speedMultiplier = 1f;
-        }
-
-        // Action A
+        // A
         if (playerCombat.isParrying || playerCombat.isBlocking)
         {
-            rb.linearVelocity = new Vector3(PlayerCombat.PARRY_OR_BLOCK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            rb.linearVelocity = new Vector3(PlayerCombat.PARRY_OR_BLOCK_SPEED * moveActionValue, velocity.y, velocity.z);
             return;
         }
 
-        // Action B.1
+        // B.1
         if (playerCombat.isLightAttacking)
         {
-            rb.linearVelocity = new Vector3(PlayerCombat.LIGHT_ATTACK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            rb.linearVelocity = new Vector3(PlayerCombat.LIGHT_ATTACK_SPEED * moveActionValue, velocity.y, velocity.z);
             return;
         }
-        // Action B.2
+        // B.2
         else if (playerCombat.isHeavyAttacking)
         {
-            rb.linearVelocity = new Vector3(PlayerCombat.HEAVY_ATTACK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            rb.linearVelocity = new Vector3(PlayerCombat.HEAVY_ATTACK_SPEED * moveActionValue, velocity.y, velocity.z);
             return;
         }
         else
         {
-            rb.linearVelocity = new Vector3(WALK_SPEED * speedMultiplier * moveActionValue, velocity.y, velocity.z);
+            rb.linearVelocity = new Vector3(WALK_SPEED * moveActionValue, velocity.y, velocity.z);
             return;
         }
     }
@@ -209,8 +240,6 @@ public class PlayerMovement : MonoBehaviour
 
         coll.size = new Vector3(coll.size.x, CROUCH_SIZE, coll.size.z);
         coll.center = new Vector3(coll.center.x, CROUCH_CENTER, coll.center.z);
-        transform.position -= new Vector3(0, 0.9f, 0);
-        Debug.Log("Crouch");
     }
     void UnCrouch()
     {
@@ -218,40 +247,43 @@ public class PlayerMovement : MonoBehaviour
 
         coll.size = new Vector3(coll.size.x, UNCROUCH_SIZE, coll.size.z);
         coll.center = new Vector3(coll.center.x, UNCROUCH_CENTER, coll.center.z);
-        transform.position += new Vector3(0, 0.9f, 0);
-        Debug.Log("Uncrouch");
     }
 
     IEnumerator Roll(float direction)
     {
         isRolling = true;
 
-        float time = 0;
-        float duration = 0.4f;
+        if (direction == 1)
+        {
+            anim.SetTrigger("F_Roll");
+        }
+        else
+        {
+            anim.SetTrigger("B_Roll");
+        }
 
-        Crouch();
+        float time = 0;
+        float duration = 0.8f;
+
+        coll.size = new Vector3(coll.size.x, CROUCH_SIZE, coll.size.z);
+        coll.center = new Vector3(coll.center.x, CROUCH_CENTER, coll.center.z);
+
+        meshBone.position += new Vector3(0, 0.9f, 0);
         rb.linearDamping = 0;
         while (time < duration)
         {
-            rb.AddForce(new Vector3(13000 * direction, 0, 0), ForceMode.Force);
+            rb.AddForce(new Vector3(1200 * direction, 0, 0), ForceMode.Force);
             yield return new WaitForSeconds(0.01f);
             time += 0.01f;
         }
-        UnCrouch();
+        coll.size = new Vector3(coll.size.x, UNCROUCH_SIZE, coll.size.z);
+        coll.center = new Vector3(coll.center.x, UNCROUCH_CENTER, coll.center.z);
+
+        meshBone.position -= new Vector3(0, 0.9f, 0);
         rb.linearDamping = 0.6f;
         rb.linearVelocity = Vector3.zero;
 
         isRolling = false;
     }
 
-    /*
-    IEnumerator Timer()
-    {
-        while (!isGrounded)
-        {
-            yield return new WaitForSeconds(0.01f);
-            timer += 0.01f;
-        }
-    }
-    */
 }

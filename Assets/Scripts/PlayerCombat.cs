@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading;
 using Unity.VisualScripting;
 using UnityEditor.PackageManager;
 using UnityEngine;
@@ -19,7 +20,9 @@ public class PlayerCombat : MonoBehaviour
     public InputActionAsset InputActions;
 
     private PlayerCombat opponentPlayerCombat;
+
     private UIManager uiManager;
+    private PlayerMovement playerMovement;
 
     private int playerNumber;
     private int opponentNumber;
@@ -36,13 +39,15 @@ public class PlayerCombat : MonoBehaviour
     private readonly static WaitForSeconds parryTime = new(PARRY_TIME);
     private readonly static WaitForSeconds parryReloadTime = new(PARRY_RELOAD_TIME);
 
+    private Animator anim;
+
     // EDITABLE //
     public const float WALK_SPEED = 3.5f;
     public const float LIGHT_ATTACK_SPEED = WALK_SPEED / 2;
     public const float HEAVY_ATTACK_SPEED = WALK_SPEED / 4;
-    public const float PARRY_OR_BLOCK_SPEED = WALK_SPEED / 1.5f;
-    private const float LIGHT_ATTACK_RANGE = 1;
-    private const float HEAVY_ATTACK_RANGE = 1.2f;
+    public const float PARRY_OR_BLOCK_SPEED = WALK_SPEED / 2;
+    private const float LIGHT_ATTACK_RANGE = 0.8f;
+    private const float HEAVY_ATTACK_RANGE = 1.25f;
     private const float LIGHT_ATTACK_DAMAGE = 0.1f;
     private const float HEAVY_ATTACK_DAMAGE = 0.3f;
     private const float ATTACK_DELAY = 0.2f;
@@ -84,12 +89,15 @@ public class PlayerCombat : MonoBehaviour
             opponentPlayer = GameObject.Find("Player1");
         }
         uiManager = GameObject.Find("UI").GetComponent<UIManager>();
+        playerMovement = gameObject.GetComponent<PlayerMovement>();
 
         opponentPlayerCombat = opponentPlayer.GetComponent<PlayerCombat>();
 
         lightAttackAction = InputSystem.actions.FindAction("LightAttack");
         heavyAttackAction = InputSystem.actions.FindAction("HeavyAttack");
         parryAndBlockAction = InputSystem.actions.FindAction("Parry/Block");
+
+        anim = gameObject.GetComponent<Animator>();
     }
 
     // Checks whether the player has pressed an input, then do the thing
@@ -98,21 +106,24 @@ public class PlayerCombat : MonoBehaviour
         // TEMPORARY (fix the InputSystem for both players first)
         if (playerNumber == 1 && Time.timeScale != 0)
         {
-            if (lightAttackAction.WasPressedThisFrame() && !isHeavyAttacking && !isBlocking)
+            bool isDoingNothing = !playerMovement.isRolling && !isLightAttacking && !isHeavyAttacking && !isParrying && !isBlocking;
+            bool isGrounded = playerMovement.isGrounded;
+
+            if (lightAttackAction.WasPressedThisFrame() && isDoingNothing)
             {
                 StartCoroutine(LightAttack());
             }
-            else if (heavyAttackAction.WasPressedThisFrame() && !isLightAttacking && !isBlocking)
+            else if (heavyAttackAction.WasPressedThisFrame() && isDoingNothing)
             {
                 StartCoroutine(HeavyAttack());
             }
-            else if (parryAndBlockAction.WasPressedThisFrame() && !isLightAttacking && !isHeavyAttacking)
+            else if (parryAndBlockAction.WasPressedThisFrame() && isDoingNothing && playerMovement.isGrounded)
             {
                 StartCoroutine(ParryAndBlock());
             }
-            else if (parryAndBlockAction.WasReleasedThisFrame() && (isBlocking || isParrying))
+            else if (parryAndBlockAction.WasReleasedThisFrame() && (isParrying || isBlocking) || !playerMovement.isGrounded)
             {
-                StopParryAndBlock();
+                StartCoroutine(StopParryAndBlock());
             }
         }
     }
@@ -122,29 +133,50 @@ public class PlayerCombat : MonoBehaviour
     {
         isLightAttacking = true;
 
-        yield return attackDelay;
+        anim.SetTrigger("LightAttack"); // 40%
+
+        AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+
+        while (!stateInfo.IsName("D_Punch"))
+        {
+            stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+            yield return null;
+        }
+        while (stateInfo.IsName("D_Punch") && stateInfo.normalizedTime < 0.4f)
+        {
+            stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+            yield return null;
+        }
 
         Vector3 originPos = transform.position + new Vector3(0, 0.5f, 0);
         Vector3 forwardDirection = transform.TransformDirection(Vector3.forward);
 
-        if (Physics.Raycast(originPos, forwardDirection, LIGHT_ATTACK_RANGE, opponentMask) && opponentPlayerCombat.isParrying)
+        if (Physics.Raycast(originPos, forwardDirection, LIGHT_ATTACK_RANGE, opponentMask))
         {
-            Debug.Log("P" + playerNumber + " " + "Light: Parried");
-
-        }
-        else if (Physics.Raycast(originPos, forwardDirection, LIGHT_ATTACK_RANGE, opponentMask) && opponentPlayerCombat.isBlocking)
-        {
-            Debug.Log("P" + playerNumber + " " + "Light: Blocked");
-            // stamina bar
-        }
-        else if (Physics.Raycast(originPos, forwardDirection, LIGHT_ATTACK_RANGE, opponentMask))
-        {
-            Debug.Log("P" + playerNumber + " " + "Light: Hit");
-            uiManager.TakeDamage(opponentNumber, LIGHT_ATTACK_DAMAGE);
+            if (opponentPlayerCombat.isParrying)
+            {
+                Debug.Log("P" + playerNumber + " " + "Light: Parried");
+            }
+            else if (opponentPlayerCombat.isBlocking)
+            {
+                Debug.Log("P" + playerNumber + " " + "Light: Blocked");
+                // stamina bar logic here
+            }
+            else
+            {
+                Debug.Log("P" + playerNumber + " " + "Light: Hit");
+                uiManager.TakeDamage(opponentNumber, LIGHT_ATTACK_DAMAGE);
+            }
         }
         else
         {
             Debug.Log("P" + playerNumber + " " + "Light: -");
+        }
+
+        while (stateInfo.IsName("D_Punch") && stateInfo.normalizedTime < 1.0f)
+        {
+            stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+            yield return null;
         }
 
         isLightAttacking = false;
@@ -153,29 +185,50 @@ public class PlayerCombat : MonoBehaviour
     {
         isHeavyAttacking = true;
 
-        yield return attackDelay;
+        anim.SetTrigger("HeavyAttack"); // 43%
+
+        AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+
+        while (!stateInfo.IsName("D_Kick"))
+        {
+            stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+            yield return null;
+        }
+        while (stateInfo.IsName("D_Kick") && stateInfo.normalizedTime < 0.4f)
+        {
+            stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+            yield return null;
+        }
 
         Vector3 originPos = transform.position + new Vector3(0, 0.5f, 0);
         Vector3 forwardDirection = transform.TransformDirection(Vector3.forward);
 
-        if (Physics.Raycast(originPos, forwardDirection, HEAVY_ATTACK_RANGE, opponentMask) && opponentPlayerCombat.isParrying)
+        if (Physics.Raycast(originPos, forwardDirection, HEAVY_ATTACK_RANGE, opponentMask))
         {
-            Debug.Log("P" + playerNumber + " " + "Heavy: Parried");
-
-        }
-        else if (Physics.Raycast(originPos, forwardDirection, HEAVY_ATTACK_RANGE, opponentMask) && opponentPlayerCombat.isBlocking)
-        {
-            Debug.Log("P" + playerNumber + " " + "Heavy: Blocked");
-            // stamina bar
-        }
-        else if (Physics.Raycast(originPos, forwardDirection, HEAVY_ATTACK_RANGE, opponentMask))
-        {
-            Debug.Log("P" + playerNumber + " " + "Heavy: Hit");
-            uiManager.TakeDamage(opponentNumber, HEAVY_ATTACK_DAMAGE);
+            if (opponentPlayerCombat.isParrying)
+            {
+                Debug.Log("P" + playerNumber + " " + "Light: Parried");
+            }
+            else if (opponentPlayerCombat.isBlocking)
+            {
+                Debug.Log("P" + playerNumber + " " + "Light: Blocked");
+                // stamina bar logic here
+            }
+            else
+            {
+                Debug.Log("P" + playerNumber + " " + "Light: Hit");
+                uiManager.TakeDamage(opponentNumber, HEAVY_ATTACK_DAMAGE);
+            }
         }
         else
         {
-            Debug.Log("P" + playerNumber + " " + "Heavy: -");
+            Debug.Log("P" + playerNumber + " " + "Light: -");
+        }
+
+        while (stateInfo.IsName("D_Kick") && stateInfo.normalizedTime < 1.0f)
+        {
+            stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+            yield return null;
         }
 
         isHeavyAttacking = false;
@@ -185,6 +238,9 @@ public class PlayerCombat : MonoBehaviour
     {
         if (canParry)
         {
+            anim.SetBool("IsParryingOrBlocking", true);
+            Debug.Log("Parry");
+
             canParry = false;
 
             isParrying = true;
@@ -195,12 +251,31 @@ public class PlayerCombat : MonoBehaviour
 
         if (parryAndBlockAction.IsPressed())
         {
+            anim.SetBool("IsParryingOrBlocking", true);
+            Debug.Log("Block");
+
             isParrying = false;
             isBlocking = true;
         }
     }
-    private void StopParryAndBlock()
+    private IEnumerator StopParryAndBlock()
     {
+        AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+
+        while (stateInfo.normalizedTime < 0.9f)
+        {
+            stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+            yield return null;
+        }
+
+        anim.SetBool("IsParryingOrBlocking", false);
+
+        while (stateInfo.normalizedTime < 0.46f)
+        {
+            stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+            yield return null;
+        }
+
         isParrying = false;
         isBlocking = false;
 
